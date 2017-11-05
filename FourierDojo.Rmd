@@ -1,0 +1,108 @@
+---
+title: "Fourier Dojo"
+output:
+  html_notebook: default
+  pdf_document: default
+---
+
+# Music
+
+Load the tuneR library for the notebook.
+```{r}
+library(tuneR)
+library(signal)
+```
+
+Read the Wave file into the wav object.
+```{r}
+wavFile <- '~/code/R/Fourier/LongSong.wav'
+nuWavFile <- '~/code/R/Fourier/LongSongFiltered.wav'
+
+cutoffFreq <- 2000
+```
+
+the readWave function reads wav files as integer types. Our wav file has a 16-bit depth `wav@bit`, this means that the sound pressure values are mapped to integer values that can range from -2^15 to (2^15)-1. We can convert our sound array to floating point values ranging from -1 to 1 as follows:
+```{r}
+wav <- readWave(wavFile)
+s1 <- wav@left
+s1 <- s1 / 2^(wav@bit - 1) # s1 -> floating point between -1 and 1.
+s1.length <- length(s1)
+```
+
+```{r}
+ts <- (0:(length(s1) - 1)) / wav@samp.rate * 1000
+plot(ts, s1, type='l', xlab='Time (ms)', ylab='Amplitude')
+```
+
+Plot the signal between 50 and 100 milliseconds. (TODO: Correct for sample rate)
+```{r}
+plot(ts[2000:4000], s1[2000:4000], type='l', xlab='Time (ms)', ylab='Amplitude')
+```
+
+```{r}
+s1.fft <- fft(s1)
+f1.length <- length(s1.fft)
+f1.unique <- ceiling((f1.length + 1)/2)
+f1 <- s1.fft[0:f1.unique]
+f1.scaled <- abs(f1) / s1.length
+#f1.decibel <- f1 ^ 2
+```
+
+```{r}
+fs <- (0:(f1.unique -1)) * (wav@samp.rate / s1.length)
+```
+
+Plot the frequency spectrum of wav:
+```{r}
+plot(fs, 1000*(f1.scaled), type='l', xlab='Frequency (mHz)', ylab='Amplitude')
+```
+
+```{r}
+cutoffBnd <- ceiling((length(s1.fft)/2)*(cutoffFreq/(wav@samp.rate/2)))
+```
+
+Zoom in to the cutoff frequency spectrum of wav:
+```{r}
+plot(fs[1:cutoffBnd], (1000*(f1.scaled))[1:cutoffBnd], type='l', xlab='Frequency (mHz)', ylab='Amplitude')
+```
+
+Filter the first `cutoffBnd` data points in the spectrum (roughly `cutoffFreq` Hz) and plot:
+
+```{r}
+f1.filtered <- s1.fft
+f1.filtered[cutoffBnd:(f1.length - 1)] <- 0
+plot(1:ceiling(1.10 * cutoffBnd), abs(f1.filtered)[1:ceiling(1.10 * cutoffBnd)], type='l', xlab='Frequency (Hz)', ylab='Amplitude')
+```
+
+Apply the Inverse Fourier Transform to `f1.filter`.
+
+```{r}
+s2 <- ifft(f1.filtered)
+```
+
+```{r}
+s2.scaled <- Re(round(s2 * 2^(wav@bit - 1)))
+plot(0:(length(s2.scaled) - 1), s2.scaled, type='l', xlab='Time (ms)', ylab='Amplitude')
+```
+```{r}
+plot(0:(length(s2.scaled) - 1), s2.scaled, type='l', xlab='Time (ms)', ylab='Amplitude')
+```
+
+```{r}
+nuWav <- wav
+nuWav@left <- s2.scaled
+str(nuWav)
+```
+
+Write our filtered signal to a file. Declare victory.
+
+```{r}
+writeWave(nuWav, filename = nuWavFile)
+```
+
+# Images
+
+```{r}
+library(imager)
+```
+
